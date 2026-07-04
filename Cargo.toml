@@ -4,23 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-rapidhash    = "4.4.1"
-hashbrown    = "0.14"
-parking_lot  = "0.12"
-
-[[bin]]
-name = "bench"
-path = "src/main.rs"
-
-
-[[bin]]
-name = "bench_hashbrown"
-path = "src/main_hashbrown.rs"
-
-[[bin]]
-name = "bench_get"
-path = "src/main_get.rs"
-
-[[bin]]
-name = "bench_hashbrown_get"
-path = "src/main_hashbrown_get.rs"
+hashbrown = "0.17.1"
+vegosh = { path = "/home/bongacat/vegosh-rs" }
