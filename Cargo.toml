@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 hashbrown = "0.17.1"
+rand = "0.10.2"
 vegosh = { path = "/home/bongacat/vegosh-rs" }
