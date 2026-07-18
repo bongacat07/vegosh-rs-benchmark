@@ -2,7 +2,7 @@ use rapidhash::v3::{DEFAULT_RAPID_SECRETS, rapidhash_v3_seeded};
 
 pub const TABLE_SIZE: usize = 1 << 21;
 pub const MASK: u32 = (TABLE_SIZE as u32) - 1;
-pub const MAX_KEYS: usize = 1048576;
+pub const MAX_KEYS: usize = 1572864;
 
 pub const EMPTY: u8 = 0x00;
 pub const OCCUPIED: u8 = 0x01;

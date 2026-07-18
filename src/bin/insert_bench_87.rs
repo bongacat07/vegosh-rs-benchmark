@@ -1,9 +1,6 @@
-use rand::rng;
-use rand::seq::{IndexedRandom, SliceRandom};
-use std::env;
 use std::u64;
 
-use hashbrown::HashMap;
+use veg_hashmap::vegosh::vegosh_87::*;
 
 const A: u64 = 0x9e3779b97f4a7c15;
 const B: u64 = 0xd1b54a32d192ed03;
@@ -11,8 +8,6 @@ const VALUE: [u8; 32] = [
     0x9f, 0x4a, 0x7c, 0x2e, 0xd1, 0x83, 0x56, 0xb9, 0x14, 0xea, 0x67, 0x3d, 0x80, 0xc5, 0x29, 0xf2,
     0x71, 0x0b, 0xa8, 0x4f, 0xde, 0x95, 0x32, 0x6c, 0x58, 0xe1, 0x13, 0xaf, 0x7b, 0xc4, 0x90, 0x2d,
 ];
-
-const MAX_KEYS: u64 = 1048576;
 
 fn create(x: u64) -> u64 {
     A * x + B
@@ -22,42 +17,17 @@ fn generate_key(i: u64) -> u128 {
     ((create(i) as u128) << 64) | (create(i ^ 0x9e3779b97f4a7c15) as u128)
 }
 
-fn key_bytes(k: u128) -> [u8; 16] {
-    k.to_le_bytes()
-}
+fn generate_keys_table() -> Vec<u128> {
+    let mut keys = Vec::with_capacity(MAX_KEYS as usize);
 
-fn generate_table(ratio: f64, table: &mut HashMap<[u8; 16], [u8; 32]>) -> Vec<u128> {
-    let mut real_keys: Vec<u128> = Vec::with_capacity(MAX_KEYS as usize);
     for i in 0..MAX_KEYS {
-        let key = generate_key(i);
-        let key_b = key_bytes(key);
-        table.insert(key_b, VALUE);
-        real_keys.push(key);
+        keys.push(generate_key(i as u64));
     }
 
-    let mut rng = rng();
-
-    if ratio >= 1.0 {
-        real_keys.shuffle(&mut rng);
-        return real_keys;
-    }
-
-    let real_count = (ratio * MAX_KEYS as f64).round() as usize;
-    let fake_count = MAX_KEYS as usize - real_count;
-
-    let real_key_array: Vec<u128> = real_keys.sample(&mut rng, real_count).cloned().collect();
-
-    let fake_key_array: Vec<u128> = (MAX_KEYS..MAX_KEYS + fake_count as u64)
-        .map(generate_key)
-        .collect();
-
-    let mut merged = Vec::with_capacity(MAX_KEYS as usize);
-    merged.extend(real_key_array);
-    merged.extend(fake_key_array);
-    merged.shuffle(&mut rng);
-
-    merged
+    keys
 }
+
+static mut TABLE: Vegosh = Vegosh::new();
 
 struct Results {
     min: u64,
@@ -105,15 +75,17 @@ fn measure_overhead() -> u64 {
     best
 }
 
-fn get_benchmark(table: &HashMap<[u8; 16], [u8; 32]>, overhead: u64, keys: &[u128]) -> Results {
+fn insert_benchmark(table: &mut Vegosh, overhead: u64, keys: &[u128]) -> Results {
+    clear(table);
+
     let mut samples = Vec::with_capacity(MAX_KEYS as usize);
     let mut total: u64 = 0;
 
-    for key in keys.iter().take(MAX_KEYS as usize) {
-        let key_bytes = key.to_le_bytes();
+    for (i, key) in keys.iter().take(MAX_KEYS as usize).enumerate() {
+        let key_bytes = key.to_le_bytes(); // u128 -> [u8; 16], matches KEY_SIZE
 
         let start = rdtsc_begin();
-        let _rc = std::hint::black_box(table.get(&key_bytes));
+        let rc = insert(table, &key_bytes, &VALUE, VALUE.len() as u8);
         let end = rdtsc_end();
 
         let mut cycles = end - start;
@@ -128,10 +100,12 @@ fn get_benchmark(table: &HashMap<[u8; 16], [u8; 32]>, overhead: u64, keys: &[u12
     }
 
     if samples.is_empty() {
-        panic!("No lookups performed.");
+        panic!("No successful insertions.");
     }
+
     samples.sort_unstable();
     let n = samples.len();
+
     Results {
         min: samples[0],
         max: samples[n - 1],
@@ -146,30 +120,13 @@ fn get_benchmark(table: &HashMap<[u8; 16], [u8; 32]>, overhead: u64, keys: &[u12
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let argc = args.len();
-    let ratio: f64 = if argc < 2 {
-        eprintln!("Usage: {} <ratio>", args[0]);
-        std::process::exit(1);
-    } else {
-        match args[1].parse::<f64>() {
-            Ok(num) => num,
-            Err(_) => {
-                eprintln!("Error: '{}' is not a valid float.", args[1]);
-                std::process::exit(1);
-            }
-        }
-    };
-
-    let mut table: HashMap<[u8; 16], [u8; 32]> = HashMap::with_capacity(MAX_KEYS as usize);
-    let keys = generate_table(ratio, &mut table);
-
+    let keys = generate_keys_table();
     let overhead = measure_overhead();
     println!("Overhead: {}", overhead);
-    println!("Max Keys: {}", MAX_KEYS);
-
+    let table: &mut Vegosh = unsafe { &mut *core::ptr::addr_of_mut!(TABLE) };
+    init(table);
     for run in 0..20 {
-        let results = get_benchmark(&table, overhead, &keys);
+        let results = insert_benchmark(table, overhead, &keys);
 
         println!(
             "Run {:2}: min={} p25={} median={} p75={} p90={} p95={} p99={} max={} mean={:.2}",

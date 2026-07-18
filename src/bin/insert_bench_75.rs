@@ -1,6 +1,6 @@
 use std::u64;
 
-use vegosh::{Vegosh, clear, init, insert, size, vegosh::MAX_KEYS};
+use veg_hashmap::vegosh::vegosh_75::*;
 
 const A: u64 = 0x9e3779b97f4a7c15;
 const B: u64 = 0xd1b54a32d192ed03;
