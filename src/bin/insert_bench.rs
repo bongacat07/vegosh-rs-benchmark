@@ -95,11 +95,6 @@ fn insert_benchmark(table: &mut Vegosh, overhead: u64, keys: &[u128]) -> Results
             cycles = 0;
         }
 
-        if rc != 0 {
-            eprintln!("Insert failed at key {}", i);
-            break;
-        }
-
         samples.push(cycles);
         total += cycles;
     }

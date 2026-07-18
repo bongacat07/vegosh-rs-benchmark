@@ -2,9 +2,7 @@ use rand::rng;
 use rand::seq::{IndexedRandom, SliceRandom};
 use std::env;
 use std::u64;
-
-use vegosh::{Vegosh, clear, get, init, insert, size, vegosh::MAX_KEYS};
-
+use veg_hashmap::vegmax::vegmax::*;
 const A: u64 = 0x9e3779b97f4a7c15;
 const B: u64 = 0xd1b54a32d192ed03;
 const VALUE: [u8; 32] = [
@@ -115,7 +113,7 @@ fn get_benchmark(table: &Vegosh, overhead: u64, keys: &[u128]) -> Results {
         let key_bytes = key.to_le_bytes();
 
         let start = rdtsc_begin();
-        let _rc = get(table, &key_bytes);
+        let _rc = std::hint::black_box(get(table, &key_bytes));
         let end = rdtsc_end();
 
         let mut cycles = end - start;
@@ -132,7 +130,6 @@ fn get_benchmark(table: &Vegosh, overhead: u64, keys: &[u128]) -> Results {
     if samples.is_empty() {
         panic!("No lookups performed.");
     }
-
     samples.sort_unstable();
     let n = samples.len();
     Results {
@@ -168,6 +165,7 @@ fn main() {
 
     let overhead = measure_overhead();
     println!("Overhead: {}", overhead);
+    println!("Max Keys: {}", MAX_KEYS);
 
     for run in 0..20 {
         let results = get_benchmark(table, overhead, &keys);
