@@ -115,7 +115,7 @@ fn get_benchmark(table: &Vegosh, overhead: u64, keys: &[u128]) -> Results {
         let key_bytes = key.to_le_bytes();
 
         let start = rdtsc_begin();
-        let _rc = get(table, &key_bytes);
+        let _rc = std::hint::black_box(get(table, &key_bytes));
         let end = rdtsc_end();
 
         let mut cycles = end - start;
