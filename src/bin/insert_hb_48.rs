@@ -71,13 +71,23 @@ fn measure_overhead() -> u64 {
 
     best
 }
-
+#[inline(never)]
+fn flush_cache() {
+    const FLUSH_SIZE: usize = 64 * 1024 * 1024;
+    let flush_buf = vec![0xA5u8; FLUSH_SIZE];
+    let mut sink: u64 = 0;
+    for chunk in flush_buf.chunks(64) {
+        sink = sink.wrapping_add(chunk[0] as u64);
+    }
+    std::hint::black_box(sink);
+}
 fn insert_benchmark(
     table: &mut HashMap<[u8; 16], [u8; 32]>,
     overhead: u64,
     keys: &[u128],
 ) -> Results {
     table.clear();
+    flush_cache();
 
     let mut samples = Vec::with_capacity(MAX_KEYS as usize);
     let mut total: u64 = 0;
@@ -128,17 +138,20 @@ fn main() {
 
     let mut table: HashMap<[u8; 16], [u8; 32]> = HashMap::with_capacity(MAX_KEYS as usize);
 
-    for _ in 0..20 {
+    for run in 0..20 {
         let results = insert_benchmark(&mut table, overhead, &keys);
-        println!("insert cycles (n = {}):", table.len());
-        println!("  min    {}", results.min);
-        println!("  p25    {}", results.p25);
-        println!("  median {}", results.median);
-        println!("  p75    {}", results.p75);
-        println!("  p90    {}", results.p90);
-        println!("  p95    {}", results.p95);
-        println!("  p99    {}", results.p99);
-        println!("  max    {}", results.max);
-        println!("  mean   {:.1}", results.mean);
+        println!(
+            "Run {:2}: min={} p25={} median={} p75={} p90={} p95={} p99={} max={} mean={:.2}",
+            run,
+            results.min,
+            results.p25,
+            results.median,
+            results.p75,
+            results.p90,
+            results.p95,
+            results.p99,
+            results.max,
+            results.mean,
+        );
     }
 }
