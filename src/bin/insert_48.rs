@@ -1,3 +1,7 @@
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::Path;
+
 use std::u64;
 
 use vegosh::{Vegosh, clear, init, insert, size, vegosh::MAX_KEYS};

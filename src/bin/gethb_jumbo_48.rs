@@ -1,3 +1,7 @@
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::Path;
+
 use rand::rng;
 use rand::seq::{IndexedRandom, SliceRandom};
 use std::env;
@@ -171,14 +175,27 @@ fn main() {
     let keys = generate_table(ratio, &mut table);
 
     let overhead = measure_overhead();
-    println!("Overhead: {}", overhead);
-    println!("Max Keys: {}", MAX_KEYS);
+
+    let filename = format!("benchmark_results_hb_jumbo_48_{}.csv", ratio);
+    let file_exists = Path::new(&filename).exists();
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&filename)
+        .unwrap();
+
+    if !file_exists {
+        writeln!(file, "Overhead,{}", overhead).unwrap();
+        writeln!(file, "Max Keys,{}", MAX_KEYS).unwrap();
+        writeln!(file, "run,min,p25,median,p75,p90,p95,p99,max,mean").unwrap();
+    }
 
     for run in 0..20 {
         let results = get_benchmark(&table, overhead, &keys);
-
-        println!(
-            "Run {:2}: min={} p25={} median={} p75={} p90={} p95={} p99={} max={} mean={:.2}",
+        writeln!(
+            file,
+            "{},{},{},{},{},{},{},{},{},{:.2}",
             run,
             results.min,
             results.p25,
@@ -189,6 +206,7 @@ fn main() {
             results.p99,
             results.max,
             results.mean,
-        );
+        )
+        .unwrap();
     }
 }
