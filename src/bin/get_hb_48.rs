@@ -1,13 +1,12 @@
+use hashbrown::HashMap;
 use rand::rng;
 use rand::seq::{IndexedRandom, SliceRandom};
+use rapidhash::fast::SeedableState;
 use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 use std::u64;
-
-use hashbrown::HashMap;
-
 const A: u64 = 0x9e3779b97f4a7c15;
 const B: u64 = 0xd1b54a32d192ed03;
 const VALUE: [u8; 32] = [
@@ -29,7 +28,7 @@ fn key_bytes(k: u128) -> [u8; 16] {
     k.to_le_bytes()
 }
 
-fn generate_table(ratio: f64, table: &mut HashMap<[u8; 16], [u8; 32]>) -> Vec<u128> {
+fn generate_table(ratio: f64, table: &mut HashMap<[u8; 16], [u8; 32], SeedableState>) -> Vec<u128> {
     let mut real_keys: Vec<u128> = Vec::with_capacity(MAX_KEYS as usize);
     for i in 0..MAX_KEYS {
         let key = generate_key(i);
@@ -108,7 +107,11 @@ fn measure_overhead() -> u64 {
     best
 }
 
-fn get_benchmark(table: &HashMap<[u8; 16], [u8; 32]>, overhead: u64, keys: &[u128]) -> Results {
+fn get_benchmark(
+    table: &HashMap<[u8; 16], [u8; 32], SeedableState>,
+    overhead: u64,
+    keys: &[u128],
+) -> Results {
     let mut samples = Vec::with_capacity(MAX_KEYS as usize);
     let mut total: u64 = 0;
 
@@ -165,7 +168,8 @@ fn main() {
         }
     };
 
-    let mut table: HashMap<[u8; 16], [u8; 32]> = HashMap::with_capacity(MAX_KEYS as usize);
+    let mut table: HashMap<[u8; 16], [u8; 32], SeedableState> =
+        HashMap::with_capacity_and_hasher(MAX_KEYS as usize, SeedableState::fixed());
     let keys = generate_table(ratio, &mut table);
 
     let overhead = measure_overhead();

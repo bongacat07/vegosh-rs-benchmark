@@ -34,7 +34,7 @@ fn generate_table(ratio: f64, table: &mut Vegosh) -> Vec<u128> {
     for i in 0..MAX_KEYS as u64 {
         let key = generate_key(i);
         let key_b = key_bytes(key);
-        insert(table, &key_b, &VALUE, VALUE.len() as u8);
+        let _ = insert(table, &key_b, &VALUE, VALUE.len() as u8);
         real_keys.push(key);
     }
 

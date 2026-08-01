@@ -39,7 +39,7 @@ fn generate_table(ratio: f64, table: &mut Vegosh) -> Vec<u128> {
     for i in 0..MAX_KEYS as u64 {
         let key = generate_key(i);
         let key_b = key_bytes(key);
-        insert(table, &key_b, &VALUE, VALUE.len() as u8);
+        let _ = insert(table, &key_b, &VALUE, VALUE.len() as u8);
         real_keys.push(key);
     }
 
@@ -174,7 +174,6 @@ fn main() {
     let table: &mut Vegosh = unsafe { &mut *core::ptr::addr_of_mut!(TABLE) };
     let keys = generate_table(ratio, table);
 
-    let overhead = measure_overhead();
     let overhead = measure_overhead();
 
     let filename = format!("benchmark_results_veg_jumbo_75_{}.csv", ratio);
