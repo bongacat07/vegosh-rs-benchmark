@@ -8,3 +8,7 @@ hashbrown = "0.17.1"
 rand = "0.10.2"
 rapidhash = "4.5.1"
 vegosh = "1.0.0"
+
+[profile.release]
+debug = 2
+strip = false
