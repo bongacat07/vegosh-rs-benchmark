@@ -152,7 +152,7 @@ pub fn insert(
 // fast: if we've probed further than the slot in front of us has ever
 // been displaced, the key we're looking for cannot exist anywhere later
 // in the probe sequence, so we can stop instead of scanning the whole table.
-#[inline(always)]
+#[inline(never)]
 pub fn get(table: &Vegosh, key: &[u8; 16]) -> Option<([u8; 100], u8)> {
     let hash = hash_key(key);
     let mut index: u32 = (hash as u32) & MASK;
