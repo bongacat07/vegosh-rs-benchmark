@@ -155,7 +155,7 @@ pub fn insert_modified(
     key: &[u8; 16],
     value: &[u8; 32],
     value_len: u8,
-    hist_array: &mut [u32; 1024],
+    hist_array: &mut [u32; 4096],
 ) -> Result<InsertOutcome, TableFull> {
     assert!((value_len as usize) <= VALUE_SIZE);
 
@@ -181,8 +181,10 @@ pub fn insert_modified(
 
         // Empty slot: insert here.
         if slot.status == EMPTY {
-            let bucket = (incoming.probe_dist as usize).min(hist_array.len() - 1);
-            hist_array[bucket] = hist_array[bucket].saturating_add(1);
+            debug_assert!((incoming.probe_dist as usize) < hist_array.len());
+
+            let bucket = incoming.probe_dist as usize;
+            hist_array[bucket] += 1;
 
             *slot = incoming;
             table.count += 1;
@@ -327,4 +329,13 @@ pub fn size(table: &Vegosh) -> usize {
 pub fn clear(table: &mut Vegosh) {
     table.slots.fill(Slot::EMPTY);
     table.count = 0;
+}
+
+#[inline(always)]
+pub fn probe_dist_snapshot(table: &Vegosh, hist: &mut [u32; 4096]) {
+    for slot in table.slots.iter() {
+        if slot.status == OCCUPIED {
+            hist[slot.probe_dist as usize] += 1;
+        }
+    }
 }

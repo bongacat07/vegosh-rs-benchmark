@@ -327,3 +327,12 @@ pub fn clear(table: &mut Vegosh) {
     table.slots.fill(Slot::EMPTY);
     table.count = 0;
 }
+
+#[inline(always)]
+pub fn probe_dist_snapshot(table: &Vegosh, hist: &mut [u32; 4096]) {
+    for slot in table.slots.iter() {
+        if slot.status == OCCUPIED {
+            hist[slot.probe_dist as usize] += 1;
+        }
+    }
+}
