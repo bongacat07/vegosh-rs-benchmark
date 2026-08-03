@@ -159,19 +159,6 @@ pub fn get(table: &Vegosh, key: &[u8; 16]) -> Option<([u8; 100], u8)> {
     let mut probe_dist: u16 = 0;
 
     loop {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            use core::arch::x86_64::{_MM_HINT_T0, _mm_prefetch};
-
-            let next_ptr = table
-                .slots
-                .as_ptr()
-                .add(((index + 4) & MASK) as usize)
-                .cast::<i8>();
-
-            _mm_prefetch(next_ptr, _MM_HINT_T0);
-        }
-
         let slot = &table.slots[index as usize];
         // Hit an empty slot before finding the key: it's not in the table.
         if slot.status == EMPTY {
