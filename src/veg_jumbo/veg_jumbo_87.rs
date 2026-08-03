@@ -191,6 +191,63 @@ pub fn get(table: &Vegosh, key: &[u8; 16]) -> Option<([u8; 100], u8)> {
         probe_dist += 1;
     }
 }
+#[inline(always)]
+pub fn insert_modified(
+    table: &mut Vegosh,
+    key: &[u8; 16],
+    value: &[u8; 100],
+    value_len: u8,
+    hist_array: &mut [u32; 4096],
+) -> Result<InsertOutcome, TableFull> {
+    assert!((value_len as usize) <= VALUE_SIZE);
+
+    if table.count >= MAX_KEYS {
+        return Err(TableFull);
+    }
+
+    let hash = hash_key(key);
+    let mut index: u32 = (hash as u32) & MASK;
+
+    let mut incoming = Slot {
+        key: *key,
+        value: *value,
+        hash,
+        value_len,
+        status: OCCUPIED,
+        probe_dist: 0,
+    };
+
+    loop {
+        let slot = &mut table.slots[index as usize];
+
+        // Empty slot: insert here.
+        if slot.status == EMPTY {
+            debug_assert!((incoming.probe_dist as usize) < hist_array.len());
+
+            let bucket = incoming.probe_dist as usize;
+            hist_array[bucket] += 1;
+
+            *slot = incoming;
+            table.count += 1;
+            return Ok(InsertOutcome::Inserted);
+        }
+
+        // Existing key: update in place.
+        if slot.hash == incoming.hash && slot.key == incoming.key {
+            slot.value = incoming.value;
+            slot.value_len = incoming.value_len;
+            return Ok(InsertOutcome::Updated);
+        }
+
+        // Robin Hood swap.
+        if incoming.probe_dist > slot.probe_dist {
+            std::mem::swap(slot, &mut incoming);
+        }
+
+        index = (index + 1) & MASK;
+        incoming.probe_dist += 1;
+    }
+}
 // Removes a key from the table using backward-shift deletion, which keeps
 // the Robin Hood probe-distance invariant intact without needing tombstones.
 //

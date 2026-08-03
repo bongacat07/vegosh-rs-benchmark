@@ -149,6 +149,62 @@ pub fn insert(
         incoming.probe_dist += 1;
     }
 }
+#[inline(always)]
+pub fn insert_modified(
+    table: &mut Vegosh,
+    key: &[u8; 16],
+    value: &[u8; 32],
+    value_len: u8,
+    hist_array: &mut [u32; 1024],
+) -> Result<InsertOutcome, TableFull> {
+    assert!((value_len as usize) <= VALUE_SIZE);
+
+    if table.count >= MAX_KEYS {
+        return Err(TableFull);
+    }
+
+    let hash = hash_key(key);
+    let mut index: u32 = (hash as u32) & MASK;
+
+    let mut incoming = Slot {
+        key: *key,
+        value: *value,
+        hash,
+        value_len,
+        status: OCCUPIED,
+        probe_dist: 0,
+        padding: [0; 4],
+    };
+
+    loop {
+        let slot = &mut table.slots[index as usize];
+
+        // Empty slot: insert here.
+        if slot.status == EMPTY {
+            let bucket = (incoming.probe_dist as usize).min(hist_array.len() - 1);
+            hist_array[bucket] = hist_array[bucket].saturating_add(1);
+
+            *slot = incoming;
+            table.count += 1;
+            return Ok(InsertOutcome::Inserted);
+        }
+
+        // Existing key: update in place.
+        if slot.hash == incoming.hash && slot.key == incoming.key {
+            slot.value = incoming.value;
+            slot.value_len = incoming.value_len;
+            return Ok(InsertOutcome::Updated);
+        }
+
+        // Robin Hood swap.
+        if incoming.probe_dist > slot.probe_dist {
+            std::mem::swap(slot, &mut incoming);
+        }
+
+        index = (index + 1) & MASK;
+        incoming.probe_dist += 1;
+    }
+}
 // Looks up a key and copies its value into out_value / out_value_len.
 //
 // The probe_distance early-exit below is what makes Robin Hood lookups
