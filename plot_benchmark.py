@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate Vegosh vs Hashbrown comparison charts from benchmark_results/.
+Also generates a Vegosh-only set of stat-tile charts alongside the comparison set.
 
 Expected layout (from organize.sh):
     benchmark_results/{normal,jumbo}/lf_{48,75,87}/ratio_{1.0,0.9,0.5}/*.csv
@@ -85,15 +86,16 @@ def find_file(folder: Path, keyword: str) -> Path | None:
 
 # ---- Plotting ------------------------------------------------------------
 
-def build_figure(category: str, lf: str):
+def build_figure(category: str, lf: str, only_vegosh: bool = False):
     fig, axes = plt.subplots(
         nrows=len(RATIOS), ncols=len(METRICS),
         figsize=(14, 11.5),
     )
     fig.patch.set_facecolor(BG_COLOR)
 
+    title_suffix = "  ·  Vegosh only" if only_vegosh else ""
     fig.suptitle(
-        f"Vegosh vs Hashbrown  ·  {category.capitalize()}\nLoad Factor {LF_LABELS[lf]}",
+        f"Vegosh{' vs Hashbrown' if not only_vegosh else ''}{title_suffix}  ·  {category.capitalize()}\nLoad Factor {LF_LABELS[lf]}",
         fontsize=17, fontweight="bold", y=0.985, color=TEXT_COLOR,
     )
 
@@ -105,17 +107,19 @@ def build_figure(category: str, lf: str):
         veg_stats = hb_stats = None
         if folder.exists():
             veg_file = find_file(folder, "veg")
-            hb_file = find_file(folder, "hb")
             if veg_file:
                 veg_stats = load_csv_stats(veg_file)
-            if hb_file:
-                hb_stats = load_csv_stats(hb_file)
+            if not only_vegosh:
+                hb_file = find_file(folder, "hb")
+                if hb_file:
+                    hb_stats = load_csv_stats(hb_file)
 
         for col_idx, metric in enumerate(METRICS):
             ax = axes[row_idx][col_idx]
             ax.set_facecolor(PANEL_COLOR)
 
-            if veg_stats is None or hb_stats is None:
+            missing = veg_stats is None or (not only_vegosh and hb_stats is None)
+            if missing:
                 ax.text(0.5, 0.5, "No data", ha="center", va="center",
                         transform=ax.transAxes, color=SUBTEXT_COLOR, fontsize=10)
                 ax.set_xticks([])
@@ -126,19 +130,52 @@ def build_figure(category: str, lf: str):
 
             any_data_found = True
             veg_val = veg_stats[metric]
+
+            # ---- Vegosh-only: stat-tile style, no bars/axes ----
+            if only_vegosh:
+                ax.set_xticks([])
+                ax.set_yticks([])
+                for spine in ax.spines.values():
+                    spine.set_visible(False)
+
+                ax.text(
+                    0.5, 0.56, f"{veg_val:.1f}",
+                    ha="center", va="center", transform=ax.transAxes,
+                    fontsize=26, fontweight="bold", color=VEG_COLOR,
+                )
+                ax.text(
+                    0.5, 0.32, "CPU cycles",
+                    ha="center", va="center", transform=ax.transAxes,
+                    fontsize=9.5, color=SUBTEXT_COLOR,
+                )
+                # small accent line under the number
+                ax.plot(
+                    [0.35, 0.65], [0.44, 0.44],
+                    transform=ax.transAxes, color=VEG_EDGE,
+                    linewidth=2.2, solid_capstyle="round",
+                )
+
+                if row_idx == 0:
+                    ax.set_title(metric.capitalize(), fontsize=13, fontweight="bold",
+                                 color=TEXT_COLOR, pad=10)
+                continue
+
+            # ---- Comparison mode: grouped bars ----
             hb_val = hb_stats[metric]
+            labels = ["Vegosh", "Hashbrown"]
+            values = [veg_val, hb_val]
+            colors = [VEG_COLOR, HB_COLOR]
+            edges = [VEG_EDGE, HB_EDGE]
+            max_val = max(veg_val, hb_val)
 
             bars = ax.bar(
-                ["Vegosh", "Hashbrown"],
-                [veg_val, hb_val],
-                color=[VEG_COLOR, HB_COLOR],
-                edgecolor=[VEG_EDGE, HB_EDGE],
+                labels, values,
+                color=colors, edgecolor=edges,
                 linewidth=1.4,
                 width=0.55,
                 zorder=3,
             )
 
-            max_val = max(veg_val, hb_val)
             ax.set_ylim(0, max_val * 1.28)
 
             ax.grid(axis="y", linewidth=0.6, alpha=0.5, zorder=0)
@@ -150,7 +187,7 @@ def build_figure(category: str, lf: str):
                 else:
                     spine.set_color(GRID_COLOR)
 
-            for bar, val in zip(bars, [veg_val, hb_val]):
+            for bar, val in zip(bars, values):
                 ax.text(
                     bar.get_x() + bar.get_width() / 2, val + max_val * 0.03,
                     f"{val:.1f}", ha="center", va="bottom",
@@ -174,25 +211,27 @@ def build_figure(category: str, lf: str):
             ha="right", va="center", rotation=90,
         )
 
-    # Legend
-    from matplotlib.patches import Patch
-    legend_handles = [
-        Patch(facecolor=VEG_COLOR, edgecolor=VEG_EDGE, label="Vegosh"),
-        Patch(facecolor=HB_COLOR, edgecolor=HB_EDGE, label="Hashbrown"),
-    ]
-    fig.legend(
-        handles=legend_handles, loc="upper right",
-        bbox_to_anchor=(0.98, 0.985), fontsize=11,
-        frameon=False, labelcolor=TEXT_COLOR,
-    )
+    # Legend (skip for vegosh-only, it's redundant with a single series)
+    if not only_vegosh:
+        from matplotlib.patches import Patch
+        legend_handles = [
+            Patch(facecolor=VEG_COLOR, edgecolor=VEG_EDGE, label="Vegosh"),
+            Patch(facecolor=HB_COLOR, edgecolor=HB_EDGE, label="Hashbrown"),
+        ]
+        fig.legend(
+            handles=legend_handles, loc="upper right",
+            bbox_to_anchor=(0.98, 0.985), fontsize=11,
+            frameon=False, labelcolor=TEXT_COLOR,
+        )
 
     if not any_data_found:
-        print(f"SKIPPED (no data at all): {category}/lf_{lf}")
+        print(f"SKIPPED (no data at all): {category}/lf_{lf} (only_vegosh={only_vegosh})")
         plt.close(fig)
         return
 
     fig.tight_layout(rect=(0.03, 0, 1, 0.93))
-    out_path = OUT_DIR / f"{category}_lf{lf}.png"
+    suffix = "_vegosh_only" if only_vegosh else ""
+    out_path = OUT_DIR / f"{category}_lf{lf}{suffix}.png"
     fig.savefig(out_path, dpi=160, facecolor=BG_COLOR)
     plt.close(fig)
     print(f"Saved: {out_path}")
@@ -204,6 +243,7 @@ def main():
     for category in CATEGORIES:
         for lf in LOAD_FACTORS:
             build_figure(category, lf)
+            build_figure(category, lf, only_vegosh=True)
 
 
 if __name__ == "__main__":
