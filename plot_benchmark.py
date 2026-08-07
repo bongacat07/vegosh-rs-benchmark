@@ -4,7 +4,7 @@ Generate Vegosh vs Hashbrown comparison charts from benchmark_results/.
 Also generates a Vegosh-only set of stat-tile charts alongside the comparison set.
 
 Expected layout (from organize.sh):
-    benchmark_results/{normal,jumbo}/lf_{48,75,87}/ratio_{1.0,0.9,0.5}/*.csv
+    benchmark_results/lf_{48,75,87}/ratio_{1.0,0.9,0.5}/*.csv
 
 Each CSV now looks like:
     run,min,p25,median,p75,p90,p95,p99,max,mean
@@ -22,7 +22,6 @@ BASE_DIR = Path("benchmark_results")
 OUT_DIR = BASE_DIR / "plots"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-CATEGORIES = ["normal", "jumbo"]
 LOAD_FACTORS = ["48", "75", "87"]
 LF_LABELS = {"48": "47.68%", "75": "75%", "87": "87.5%"}
 RATIOS = ["1.0", "0.9", "0.5"]   # row order, top to bottom
@@ -86,7 +85,7 @@ def find_file(folder: Path, keyword: str) -> Path | None:
 
 # ---- Plotting ------------------------------------------------------------
 
-def build_figure(category: str, lf: str, only_vegosh: bool = False):
+def build_figure(lf: str, only_vegosh: bool = False):
     fig, axes = plt.subplots(
         nrows=len(RATIOS), ncols=len(METRICS),
         figsize=(14, 11.5),
@@ -95,14 +94,14 @@ def build_figure(category: str, lf: str, only_vegosh: bool = False):
 
     title_suffix = "  ·  Vegosh only" if only_vegosh else ""
     fig.suptitle(
-        f"Vegosh{' vs Hashbrown' if not only_vegosh else ''}{title_suffix}  ·  {category.capitalize()}\nLoad Factor {LF_LABELS[lf]}",
+        f"Vegosh{' vs Hashbrown' if not only_vegosh else ''}{title_suffix}\nLoad Factor {LF_LABELS[lf]}",
         fontsize=17, fontweight="bold", y=0.985, color=TEXT_COLOR,
     )
 
     any_data_found = False
 
     for row_idx, ratio in enumerate(RATIOS):
-        folder = BASE_DIR / category / f"lf_{lf}" / f"ratio_{ratio}"
+        folder = BASE_DIR / f"lf_{lf}" / f"ratio_{ratio}"
 
         veg_stats = hb_stats = None
         if folder.exists():
@@ -225,13 +224,13 @@ def build_figure(category: str, lf: str, only_vegosh: bool = False):
         )
 
     if not any_data_found:
-        print(f"SKIPPED (no data at all): {category}/lf_{lf} (only_vegosh={only_vegosh})")
+        print(f"SKIPPED (no data at all): lf_{lf} (only_vegosh={only_vegosh})")
         plt.close(fig)
         return
 
     fig.tight_layout(rect=(0.03, 0, 1, 0.93))
     suffix = "_vegosh_only" if only_vegosh else ""
-    out_path = OUT_DIR / f"{category}_lf{lf}{suffix}.png"
+    out_path = OUT_DIR / f"lf{lf}{suffix}.png"
     fig.savefig(out_path, dpi=160, facecolor=BG_COLOR)
     plt.close(fig)
     print(f"Saved: {out_path}")
@@ -240,10 +239,9 @@ def build_figure(category: str, lf: str, only_vegosh: bool = False):
 # ---- Main ----------------------------------------------------------------
 
 def main():
-    for category in CATEGORIES:
-        for lf in LOAD_FACTORS:
-            build_figure(category, lf)
-            build_figure(category, lf, only_vegosh=True)
+    for lf in LOAD_FACTORS:
+        build_figure(lf)
+        build_figure(lf, only_vegosh=True)
 
 
 if __name__ == "__main__":

@@ -10,14 +10,6 @@ for file in benchmark_results_*.csv; do
     name="${file#benchmark_results_}"
     name="${name%.csv}"
 
-    # Detect jumbo vs normal
-    if [[ "$name" == *"_jumbo_"* ]]; then
-        category="jumbo"
-        name="${name/_jumbo_/_}"   # remove "jumbo" marker for easier parsing
-    else
-        category="normal"
-    fi
-
     # name is now like: hb_48_0.5  or veg_87_1
     # Extract size (48/75/87) and ratio (last field)
     if [[ "$name" =~ ^([a-z]+)_([0-9]+)_([0-9.]+)$ ]]; then
@@ -33,7 +25,7 @@ for file in benchmark_results_*.csv; do
         ratio="1.0"
     fi
 
-    dest_dir="$BASE_DIR/$category/lf_${size}/ratio_${ratio}"
+    dest_dir="$BASE_DIR/lf_${size}/ratio_${ratio}"
     mkdir -p "$dest_dir"
     mv "$file" "$dest_dir/"
     echo "Moved $file -> $dest_dir/"
