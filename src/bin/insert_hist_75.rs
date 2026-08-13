@@ -58,13 +58,13 @@ fn main() -> std::io::Result<()> {
     writeln!(writer, "landings")?;
     for (dist, count) in landing_hist.iter().enumerate() {
         if *count != 0 {
-            writeln!(writer, "{},{}", dist + 1, count)?;
+            writeln!(writer, "{},{}", dist, count)?;
         }
     }
     writeln!(writer, "snapshot")?;
     for (dist, count) in snapshot_hist.iter().enumerate() {
         if *count != 0 {
-            writeln!(writer, "{},{}", dist + 1, count)?;
+            writeln!(writer, "{},{}", dist, count)?;
         }
     }
     Ok(())
