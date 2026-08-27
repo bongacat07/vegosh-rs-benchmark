@@ -340,3 +340,16 @@ pub fn probe_dist_snapshot(table: &Vegosh, hist: &mut [u32; 4096]) {
         }
     }
 }
+
+#[inline(always)]
+pub fn keys_over_probe_dist(table: &Vegosh, threshold: u16) -> Vec<[u8; 16]> {
+    let mut result = Vec::new();
+
+    for slot in table.slots.iter() {
+        if slot.status == OCCUPIED && slot.probe_dist > threshold {
+            result.push(slot.key);
+        }
+    }
+
+    result
+}
